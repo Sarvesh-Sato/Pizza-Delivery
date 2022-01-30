@@ -5,6 +5,13 @@ const session = require('express-session');
 const { response } = require('express');
 
 function authController(){
+    const _getRedirectUrl = (req) =>{
+        return req.user.role === 'admin' ? '/admin/orders' : 'customer/orders'
+    }
+
+
+
+
     //factory function return object
     return {
         login(req,res){
@@ -12,6 +19,15 @@ function authController(){
         },
 
         postLogin(req,res,next){
+
+            const {email ,password} = req.body;
+            //validate request
+            if(!email || !password){
+                req.flash('error','All Fields are required');
+                return res.redirect('/login');
+            }
+
+
             passport.authenticate('local' , function(err , user , info){
                 if(err){
                     req.flash('error',info.message);
@@ -27,7 +43,8 @@ function authController(){
                         req.flash('error',info.message);
                         return next(err);
                     }
-                    return res.redirect('/');
+
+                    return res.redirect(_getRedirectUrl(req));
                 })
             })(req,res,next)
 
