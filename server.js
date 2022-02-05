@@ -12,7 +12,7 @@ const session = require('express-session');
 const flash = require('express-flash');
 const MongoDbStore = require('connect-mongo');
 const passport = require('passport');
-
+const Emitter = require('events');
 //database connection
 
 const url = 'mongodb://localhost/pizza';
@@ -38,8 +38,9 @@ mongoose.connection
 //     collection: 'sessions'
 // })
 
-
-
+//Event Emitter
+const eventEmitter = new Emitter()
+app.set('eventEmitter', eventEmitter)
 // Session - config
 
 app.use(session({
@@ -52,6 +53,8 @@ app.use(session({
     cookie: {maxAge: 1000 * 60 * 60 * 24 } //24hrs
     // cookie: {maxAge: 1000 * 15 } 
 }))
+
+
 //passport config
 const passportInit = require ('./app/config/passport');
 passportInit(passport)
@@ -65,7 +68,6 @@ app.use(flash());
 app.use(express.static('public'));
 app.use(express.urlencoded({ extended : false}));
 app.use(express.json());
-
 
 //Global middelware
 app.use(function(req,res,next){
@@ -85,6 +87,25 @@ require('./routes/web')(app)
 
 
 
-app.listen(PORT, function(){
+const server = app.listen(PORT, function(){
     console.log('Listening on port '+ PORT);
 });
+
+
+//Socket
+
+const io = require('socket.io')(server)
+io.on('connection', (socket) => {
+      // Join
+      socket.on('join', (orderId) => {
+        socket.join(orderId)
+      })
+})
+
+eventEmitter.on('orderUpdated', (data) => {
+    io.to(`order_${data.id}`).emit('orderUpdated', data)
+})
+
+eventEmitter.on('orderPlaced',function(data){
+    io.to('adminRoom').emit('orderPlaced',data)
+})
